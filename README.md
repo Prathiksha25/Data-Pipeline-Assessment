@@ -1,36 +1,59 @@
 # Data Pipeline — Airflow + Postgres (Stock Fetch Example)
 
-This project implements a simple ETL data pipeline using Apache Airflow, Postgres and a Python fetch script that ingests stock price data into a database.  
-Everything runs using Docker Compose and the entire environment is reproducible using the provided `Dockerfile` and `.env` file.
+This project implements a Dockerized data pipeline using Apache Airflow and PostgreSQL to fetch, process, and store stock price data.
+It includes an Airflow DAG, custom ingestion script, Postgres integration, and complete end-to-end orchestration.
 
 ---
+Features
+
+Apache Airflow DAG orchestrating the ETL pipeline
+
+Python ingestion script to fetch and store stock data
+
+PostgreSQL database for persistent storage
+
+Docker Compose setup for easy deployment
+
+Secure configuration using .env.example
+
+Clean, modular project folder structure
 
 ## Project Structure
-
-data-pipeline/
-├── Dockerfile
-├── docker-compose.yml
-├── .env
-├── .gitignore
-├── README.md
-├── requirements.txt
+Data-Pipeline-Assessment/
+│
 ├── dags/
-│ └── stock_dag.py
+│   └── stock_dag.py          # Airflow DAG for scheduling the pipeline
+│
 ├── scripts/
-│ └── fetch_and_update.py
-└── logs/
+│   └── fetch_and_update.py   # Script to fetch API data & load into Postgres
+│
+├── docker-compose.yml        # Container setup for Airflow + Postgres
+├── dockerfile                # Used for installing dependencies in Airflow
+├── requirements.txt          # Python dependencies
+├── .env.example              # Env variables (sample template)
+├── README.md                 # Project documentation
+└── generate_fernet.py        # Script to generate Airflow Fernet key
 
 
-## Prerequisites
+Tech Stack
+Apache Airflow 2.7.x
 
-- Docker Desktop (must be running)
-- Docker CLI + Docker Compose
-- (Optional) Python 3.9 venv for local script testing
+PostgreSQL 13
+
+Python 3.8+
+
+Docker & Docker Compose
+
+Pandas, Requests, psycopg2
 
 
 ## Environment Setup
 
-### 1. Create `.env`
+### 
+git clone https://github.com/Prathiksha25/Data-Pipeline-Assessment
+cd Data-Pipeline-Assessment
+
+1. Create `.env`
 cp .env.example .env
 Important values inside .env:
 
@@ -63,6 +86,14 @@ docker-compose run --rm airflow-webserver airflow users create ^
 docker-compose build --no-cache airflow-webserver airflow-scheduler
 
 5. Start Airflow Services
+docker-compose exec airflow-webserver airflow db init
+docker-compose exec airflow-webserver airflow users create \
+    --username admin \
+    --firstname airflow \
+    --lastname admin \
+    --role Admin \
+    --email admin@example.com
+
 docker-compose up -d airflow-webserver airflow-scheduler
 Access Airflow Web UI
 Open in browser:
@@ -71,54 +102,33 @@ Login:
 Username: admin
 Password: admin
 
-Trigger the DAG
-Unpause & trigger:
-docker-compose exec airflow-webserver airflow dags unpause stock_fetch_and_store
-docker-compose exec airflow-webserver airflow dags trigger stock_fetch_and_store
+6. Access Airflow UI
+Open:
 
-List DAG runs:
-docker-compose exec airflow-webserver airflow dags list-runs -d stock_fetch_and_store
+👉 http://localhost:8080
 
-View Task Logs
-Find execution date:
-docker-compose exec airflow-webserver airflow dags list-runs -d stock_fetch_and_store
+Login with the credentials you created
 
-Then view log file:
-docker-compose exec airflow-webserver bash -lc "cat /opt/airflow/logs/stock_fetch_and_store/run_fetch_and_update_script/<EXEC_DATE>/1.log"
-Replace <EXEC_DATE> with the folder you see in list-runs.
+7️. Enable the DAG
 
-Check Latest Data
-docker-compose exec postgres psql -U airflow -d stocks_db -c "SELECT id, symbol, timestamp, close, volume FROM stock_prices ORDER BY timestamp DESC LIMIT 10;"
+In Airflow UI:
 
-Troubleshooting
-Airflow says: "initialize the database"
-Run:
-docker-compose run --rm airflow-webserver airflow db init
-DAG import errors
-docker-compose exec airflow-webserver airflow dags list-import-errors
-Task stuck in queued
-Ensure scheduler is running:
-docker-compose ps
-docker-compose logs --tail=200 airflow-scheduler
-Missing Python packages in Airflow
-Rebuild custom images:
-docker-compose build --no-cache airflow-webserver airflow-scheduler
-docker-compose up -d --force-recreate airflow-webserver airflow-scheduler
-Useful Commands Summary
-Start everything:
-docker-compose up -d
-Rebuild images:
-docker-compose build --no-cache
-Trigger DAG:
-docker-compose exec airflow-webserver airflow dags trigger stock_fetch_and_store
-Check DB:
-docker-compose exec postgres psql -U airflow -d stocks_db
+Locate stock_fetch_and_store
 
-Notes for Reviewers
-.env is not committed — secrets stay local.
+Toggle the switch to ON
 
-DAG uses BashOperator for isolation.
+Trigger manually or wait for scheduled run
 
-Airflow + Postgres fully dockerized for reproducibility.
+Pipeline Overview
+Task Flow
 
-Project includes a custom Airflow image for dependency consistency.
+Airflow triggers the DAG based on schedule
+
+Python script fetches stock data (either via API or sample fallback)
+
+Data is validated & transformed using Pandas
+
+Postgres table is created (if not exists)
+
+Data is inserted into the database
+
